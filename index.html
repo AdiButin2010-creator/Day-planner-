@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор калорий и расписание дня</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#171d2c; --card2:#1e2637; --line:#2a3346;
+    --text:#eef1f8; --muted:#9aa4bd; --accent:#5ee1b2; --accent2:#7aa2ff;
+    --warn:#ffcf6b; --danger:#ff7a7a; --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 10% -10%, #1c2740 0%, var(--bg) 55%),var(--bg);
+    color:var(--text); min-height:100vh; padding:24px 14px 60px;
+  }
+  .wrap{max-width:780px; margin:0 auto}
+  header{text-align:center; margin-bottom:22px}
+  header h1{font-size:1.5rem; margin:0 0 6px}
+  header p{color:var(--muted); margin:0; font-size:.92rem}
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--card2));
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; margin-bottom:18px;
+  }
+  .card h2{font-size:1.05rem; margin:0 0 14px; display:flex; align-items:center; gap:8px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media (max-width:520px){ .grid{grid-template-columns:1fr} }
+  label{display:block; font-size:.82rem; color:var(--muted); margin-bottom:5px}
+  input, select{
+    width:100%; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+    background:#0f1522; color:var(--text); font-size:.95rem; outline:none;
+  }
+  input:focus, select:focus{border-color:var(--accent2)}
+  .field{margin-bottom:12px}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
+  @media (max-width:520px){ .row3{grid-template-columns:1fr} }
+  .toggle-row{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .toggle-row input[type=checkbox]{width:auto}
+  button{
+    width:100%; padding:14px; border:none; border-radius:14px; font-size:1rem; font-weight:600;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0f18; cursor:pointer;
+    margin-top:6px;
+  }
+  button:disabled{opacity:.6; cursor:default}
+  #error{
+    display:none; background:#341318; border:1px solid #5a2530; color:var(--danger);
+    padding:12px 14px; border-radius:12px; margin-bottom:16px; font-size:.9rem;
+  }
+  #results{display:none}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:6px}
+  @media (max-width:520px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  .stat{background:#0f1522; border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center}
+  .stat .num{font-size:1.35rem; font-weight:700; color:var(--accent)}
+  .stat .lbl{font-size:.75rem; color:var(--muted); margin-top:2px}
+  .notes{margin-top:12px}
+  .note{
+    background:#2a2312; border:1px solid #4a3c15; color:var(--warn);
+    padding:10px 12px; border-radius:12px; font-size:.85rem; margin-top:8px;
+  }
+  .timeline{margin-top:8px}
+  .item{
+    display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);
+  }
+  .item:last-child{border-bottom:none}
+  .item .time{
+    min-width:96px; font-variant-numeric:tabular-nums; color:var(--accent2);
+    font-size:.85rem; font-weight:600; padding-top:2px;
+  }
+  .item .icon{font-size:1.2rem; width:26px; text-align:center}
+  .item .body h4{margin:0 0 2px; font-size:.95rem}
+  .item .body p{margin:0; color:var(--muted); font-size:.85rem; line-height:1.35}
+  .item.meal .time{color:var(--accent)}
+  footer{text-align:center; color:var(--muted); font-size:.78rem; margin-top:26px}
+  .spinner{display:inline-block; width:16px; height:16px; border:2px solid #0b0f18; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="app-title">🍎 Калькулятор калорий и расписание дня</h1>
+    <p>Введи данные — получишь норму калорий, БЖУ и готовый план на день</p>
+  </header>
+
+  <form class="card" id="form">
+    <h2>👤 О тебе</h2>
+    <div class="row3">
+      <div class="field">
+        <label>Пол</label>
+        <select id="sex">
+          <option value="m">Мужской</option>
+          <option value="f">Женский</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Возраст</label>
+        <input type="number" id="age" min="10" max="100" value="15" required>
+      </div>
+      <div class="field">
+        <label>Вес, кг</label>
+        <input type="number" id="weight" min="30" max="250" value="67" required>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label>Рост, см</label>
+        <input type="number" id="height" min="120" max="230" value="181" required>
+      </div>
+      <div class="field">
+        <label>Уровень активности</label>
+        <select id="activity">
+          <option value="low">Минимальная (сидячий образ жизни)</option>
+          <option value="light">Лёгкая (1–3 тренировки/нед)</option>
+          <option value="mid" selected>Средняя (3–5 тренировок/нед)</option>
+          <option value="high">Высокая (6–7 тренировок/нед)</option>
+          <option value="extreme">Очень высокая (спорт + физ. работа)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Цель</label>
+      <select id="goal">
+        <option value="maintain" selected>Поддержание формы</option>
+        <option value="gain">Набор массы</option>
+        <option value="loss">Снижение веса</option>
+      </select>
+    </div>
+
+    <h2 style="margin-top:18px">⏰ Режим дня</h2>
+    <div class="grid">
+      <div class="field">
+        <label>Подъём</label>
+        <input type="time" id="wake" value="07:00" required>
+      </div>
+      <div class="field">
+        <label>Отбой</label>
+        <input type="time" id="sleep" value="22:30" required>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label>Начало учёбы / работы</label>
+        <input type="time" id="schoolStart" value="08:30">
+      </div>
+      <div class="field">
+        <label>Конец учёбы / работы</label>
+        <input type="time" id="schoolEnd" value="14:30">
+      
