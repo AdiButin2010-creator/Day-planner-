@@ -102,17 +102,17 @@
       </div>
       <div class="field">
         <label>Возраст</label>
-        <input type="number" id="age" min="10" max="100" value="15" required>
+        <input type="number" id="age" min="10" max="100" placeholder="Например, 15" required>
       </div>
       <div class="field">
         <label>Вес, кг</label>
-        <input type="number" id="weight" min="30" max="250" value="67" required>
+        <input type="number" id="weight" min="30" max="250" placeholder="Например, 67" required>
       </div>
     </div>
     <div class="grid">
       <div class="field">
         <label>Рост, см</label>
-        <input type="number" id="height" min="120" max="230" value="181" required>
+        <input type="number" id="height" min="120" max="230" placeholder="Например, 181" required>
       </div>
       <div class="field">
         <label>Уровень активности</label>
@@ -138,21 +138,21 @@
     <div class="grid">
       <div class="field">
         <label>Подъём</label>
-        <input type="time" id="wake" value="07:00" required>
+        <input type="time" id="wake" required>
       </div>
       <div class="field">
         <label>Отбой</label>
-        <input type="time" id="sleep" value="22:30" required>
+        <input type="time" id="sleep" required>
       </div>
     </div>
     <div class="grid">
       <div class="field">
         <label>Начало учёбы / работы</label>
-        <input type="time" id="schoolStart" value="08:30">
+        <input type="time" id="schoolStart">
       </div>
       <div class="field">
         <label>Конец учёбы / работы</label>
-        <input type="time" id="schoolEnd" value="14:30">
+        <input type="time" id="schoolEnd">
       </div>
     </div>
     <div class="field">
@@ -172,11 +172,11 @@
     <div class="grid" id="trainingFields">
       <div class="field">
         <label>Время начала</label>
-        <input type="time" id="trainingTime" value="17:00">
+        <input type="time" id="trainingTime">
       </div>
       <div class="field">
         <label>Длительность, мин</label>
-        <input type="number" id="trainingDuration" min="15" max="240" value="60">
+        <input type="number" id="trainingDuration" min="15" max="240" placeholder="Например, 60">
       </div>
     </div>
 
@@ -247,206 +247,4 @@ function buildPlan(input) {
   const age = Number(input.age), weight = Number(input.weight), height = Number(input.height);
   if (!(age >= 10 && age <= 100)) errors.push('Возраст: от 10 до 100 лет');
   if (!(weight >= 30 && weight <= 250)) errors.push('Вес: от 30 до 250 кг');
-  if (!(height >= 120 && height <= 230)) errors.push('Рост: от 120 до 230 см');
-  const factor = ACTIVITY[input.activity] || ACTIVITY.mid;
-  let goal = ['maintain', 'gain', 'loss'].includes(input.goal) ? input.goal : 'maintain';
-  const mealsCount = [3, 4, 5].includes(Number(input.meals)) ? Number(input.meals) : 4;
-
-  const wake = toMin(input.wake);
-  let sleep = toMin(input.sleep);
-  if (wake === null || sleep === null) errors.push('Укажи время подъёма и отбоя');
-  if (errors.length) return { errors };
-  if (sleep <= wake) sleep += 1440;
-  const inDay = (t) => {
-    let m = toMin(t);
-    if (m === null) return null;
-    if (m < wake) m += 1440;
-    return m <= sleep ? m : null;
-  };
-
-  const notes = [];
-  const bmr = 10 * weight + 6.25 * height - 5 * age + (sex === 'm' ? 5 : -161);
-  const tdee = bmr * factor;
-  if (age < 18) {
-    if (goal === 'loss') {
-      goal = 'maintain';
-      notes.push('До 18 лет сайт не считает дефицит калорий: организму нужна энергия на рост. Показана норма для поддержания. Если хочешь изменить вес, лучше обсудить это с врачом.');
-    }
-    notes.push('Формула рассчитана на взрослых, поэтому для подростков результат — примерный ориентир.');
-  }
-  const mult = { maintain: 1, gain: 1.1, loss: 0.85 }[goal];
-  let calories = Math.round((tdee * mult) / 10) * 10;
-  const floor = Math.round(bmr / 10) * 10;
-  if (calories < floor) calories = floor;
-
-  const proteinPerKg = { maintain: 1.6, gain: 1.8, loss: 2.0 }[goal];
-  const protein = Math.round(weight * proteinPerKg);
-  const fat = Math.round((calories * 0.25) / 9);
-  const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
-
-  const hasTraining = Boolean(input.trainingTime);
-  const water = Math.round((weight * 0.035 + (hasTraining ? 0.5 : 0)) * 10) / 10;
-
-  const sleepHours = Math.round(((wake + 1440 - (sleep % 1440)) % 1440) / 6) / 10;
-  const needSleep = age < 18 ? 8 : 7;
-  if (sleepHours < needSleep) {
-    notes.push(`Сна получается ${sleepHours} ч, а нужно минимум ${needSleep}${age < 18 ? '–10' : '–9'} ч. Попробуй ложиться раньше.`);
-  }
-
-  const ev = [];
-  const add = (start, end, title, text, type) => ev.push({ start, end, title, text, type });
-
-  add(wake, wake + 10, 'Подъём', 'Стакан воды, умыться, проветрить комнату', 'routine');
-  add(wake + 10, wake + 20, 'Зарядка', '10 минут лёгкой разминки', 'sport');
-
-  const school = { s: inDay(input.schoolStart), e: inDay(input.schoolEnd) };
-  const hasSchool = school.s !== null && school.e !== null && school.e > school.s;
-  if (hasSchool) add(school.s, school.e, 'Учёба / работа', 'Основное время занятий', 'study');
-
-  let train = null;
-  if (hasTraining) {
-    const ts = inDay(input.trainingTime);
-    const dur = Math.min(240, Math.max(15, Number(input.trainingDuration) || 60));
-    if (ts === null) notes.push('Время тренировки не попадает между подъёмом и отбоем, поэтому она не добавлена.');
-    else {
-      train = { s: ts, e: ts + dur };
-      add(train.s, train.e, 'Тренировка', `${dur} мин. Разминка в начале, растяжка в конце`, 'sport');
-      add(train.e, train.e + 15, 'Восстановление', 'Вода, растяжка. Белок — в ближайший приём пищи', 'routine');
-    }
-  }
-
-  const { names, w } = MEALS[mealsCount];
-  const first = wake + 30, last = Math.max(first + 60 * (mealsCount - 1), sleep - 180);
-  const mealTimes = names.map((_, i) => round5(first + (i * (last - first)) / (mealsCount - 1)));
-  names.forEach((name, i) => {
-    let t = mealTimes[i];
-    if (train && t > train.s - 45 && t < train.e) t = round5(train.e + 20);
-    const kcal = Math.round((calories * w[i]) / 10) * 10;
-    const p = Math.round(protein * w[i]);
-    let text = `${MEAL_IDEAS[name]}. ≈ ${kcal} ккал, белок ≈ ${p} г`;
-    if (hasSchool && t >= school.s && t < school.e) text += ' (можно взять с собой)';
-    add(t, t + 20, name, text, 'meal');
-    mealTimes[i] = t;
-  });
-
-  if (train && !mealTimes.some((t) => t >= train.s - 180 && t <= train.s - 45)) {
-    add(train.s - 60, train.s - 50, 'Перекус перед тренировкой',
-      'Банан, йогурт или бутерброд, ≈150–200 ккал из дневной нормы', 'meal');
-  }
-
-  let hw = hasSchool ? school.e + 60 : wake + 90;
-  if (train && hw < train.e && hw + 90 > train.s) hw = train.e + 45;
-  if (hw + 90 <= sleep - 90) {
-    add(hw, hw + 90, hasSchool ? 'Домашнее задание' : 'Главные дела дня',
-      'Работай блоками по 25–45 минут с короткими перерывами', 'study');
-  }
-
-  const freeS = sleep - 150;
-  if (!train || train.e <= freeS) {
-    add(freeS, sleep - 60, 'Свободное время', 'Прогулка, друзья, хобби', 'free');
-  }
-  add(sleep - 60, sleep, 'Подготовка ко сну', 'Без экранов, душ, собрать вещи на завтра', 'routine');
-  add(sleep, sleep, 'Сон', `${sleepHours} ч сна`, 'sleep');
-
-  ev.sort((a, b) => a.start - b.start);
-  const schedule = ev.map((e) => ({
-    time: e.end > e.start ? `${fmt(e.start)}–${fmt(e.end)}` : fmt(e.start),
-    title: e.title, text: e.text, type: e.type,
-  }));
-
-  return {
-    summary: { calories, bmr: Math.round(bmr), tdee: Math.round(tdee), protein, fat, carbs, water, sleepHours, goal },
-    notes,
-    schedule,
-  };
-}
-
-// ---------- Необязательный вызов серверной функции — показывает, что переменные окружения работают ----------
-fetch('/api/hello').then(r => r.ok ? r.json() : null).then(d => {
-  if (d && d.appName) {
-    const b = document.getElementById('app-badge');
-    b.textContent = d.appName;
-    b.hidden = false;
-  }
-}).catch(() => {});
-
-// ---------- Форма ----------
-const form = document.getElementById('form');
-const errorBox = document.getElementById('error');
-const results = document.getElementById('results');
-const submitBtn = document.getElementById('submitBtn');
-const hasTraining = document.getElementById('hasTraining');
-const trainingFields = document.getElementById('trainingFields');
-
-hasTraining.addEventListener('change', () => {
-  trainingFields.style.opacity = hasTraining.checked ? '1' : '.35';
-  trainingFields.style.pointerEvents = hasTraining.checked ? 'auto' : 'none';
-});
-
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  errorBox.style.display = 'none';
-  results.style.display = 'none';
-
-  const payload = {
-    sex: document.getElementById('sex').value,
-    age: document.getElementById('age').value,
-    weight: document.getElementById('weight').value,
-    height: document.getElementById('height').value,
-    activity: document.getElementById('activity').value,
-    goal: document.getElementById('goal').value,
-    wake: document.getElementById('wake').value,
-    sleep: document.getElementById('sleep').value,
-    schoolStart: document.getElementById('schoolStart').value,
-    schoolEnd: document.getElementById('schoolEnd').value,
-    meals: document.getElementById('meals').value,
-    trainingTime: hasTraining.checked ? document.getElementById('trainingTime').value : '',
-    trainingDuration: document.getElementById('trainingDuration').value,
-  };
-
-  const data = buildPlan(payload);
-  if (data.errors) {
-    errorBox.textContent = '⚠️ ' + data.errors.join('. ');
-    errorBox.style.display = 'block';
-    return;
-  }
-  render(data);
-});
-
-function render(data) {
-  const s = data.summary;
-  document.getElementById('s-cal').textContent = s.calories;
-  document.getElementById('s-protein').textContent = s.protein;
-  document.getElementById('s-fat').textContent = s.fat;
-  document.getElementById('s-carbs').textContent = s.carbs;
-  document.getElementById('s-water').textContent = s.water;
-  document.getElementById('s-sleep').textContent = s.sleepHours;
-
-  const notesBox = document.getElementById('notes');
-  notesBox.innerHTML = '';
-  (data.notes || []).forEach(n => {
-    const d = document.createElement('div');
-    d.className = 'note';
-    d.textContent = '💡 ' + n;
-    notesBox.appendChild(d);
-  });
-
-  const tl = document.getElementById('timeline');
-  tl.innerHTML = '';
-  data.schedule.forEach(item => {
-    const row = document.createElement('div');
-    row.className = 'item' + (item.type === 'meal' ? ' meal' : '');
-    row.innerHTML = `
-      <div class="time">${item.time}</div>
-      <div class="tag">${TAGS[item.type] || ''}</div>
-      <div class="body"><h4>${item.title}</h4><p>${item.text}</p></div>
-    `;
-    tl.appendChild(row);
-  });
-
-  results.style.display = 'block';
-  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-</script>
-</body>
-</html>
+  if (!(height >= 120 && height 
