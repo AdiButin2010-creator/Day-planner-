@@ -1,0 +1,9 @@
+{
+  "name": "calorie-planner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Калькулятор калорий и расписания дня",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
