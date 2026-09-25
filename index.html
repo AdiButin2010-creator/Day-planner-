@@ -334,4 +334,119 @@ function buildPlan(input) {
       'Банан, йогурт или бутерброд, ≈150–200 ккал из дневной нормы', 'meal');
   }
 
-  let hw = hasSchool ? school.e + 60
+  let hw = hasSchool ? school.e + 60 : wake + 90;
+  if (train && hw < train.e && hw + 90 > train.s) hw = train.e + 45;
+  if (hw + 90 <= sleep - 90) {
+    add(hw, hw + 90, hasSchool ? 'Домашнее задание' : 'Главные дела дня',
+      'Работай блоками по 25–45 минут с короткими перерывами', 'study');
+  }
+
+  const freeS = sleep - 150;
+  if (!train || train.e <= freeS) {
+    add(freeS, sleep - 60, 'Свободное время', 'Прогулка, друзья, хобби', 'free');
+  }
+  add(sleep - 60, sleep, 'Подготовка ко сну', 'Без экранов, душ, собрать вещи на завтра', 'routine');
+  add(sleep, sleep, 'Сон', `${sleepHours} ч сна`, 'sleep');
+
+  ev.sort((a, b) => a.start - b.start);
+  const schedule = ev.map((e) => ({
+    time: e.end > e.start ? `${fmt(e.start)}–${fmt(e.end)}` : fmt(e.start),
+    title: e.title, text: e.text, type: e.type,
+  }));
+
+  return {
+    summary: { calories, bmr: Math.round(bmr), tdee: Math.round(tdee), protein, fat, carbs, water, sleepHours, goal },
+    notes,
+    schedule,
+  };
+}
+
+// ---------- Необязательный вызов серверной функции — показывает, что переменные окружения работают ----------
+fetch('/api/hello').then(r => r.ok ? r.json() : null).then(d => {
+  if (d && d.appName) {
+    const b = document.getElementById('app-badge');
+    b.textContent = d.appName;
+    b.hidden = false;
+  }
+}).catch(() => {});
+
+// ---------- Форма ----------
+const form = document.getElementById('form');
+const errorBox = document.getElementById('error');
+const results = document.getElementById('results');
+const submitBtn = document.getElementById('submitBtn');
+const hasTraining = document.getElementById('hasTraining');
+const trainingFields = document.getElementById('trainingFields');
+
+hasTraining.addEventListener('change', () => {
+  trainingFields.style.opacity = hasTraining.checked ? '1' : '.35';
+  trainingFields.style.pointerEvents = hasTraining.checked ? 'auto' : 'none';
+});
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  errorBox.style.display = 'none';
+  results.style.display = 'none';
+
+  const payload = {
+    sex: document.getElementById('sex').value,
+    age: document.getElementById('age').value,
+    weight: document.getElementById('weight').value,
+    height: document.getElementById('height').value,
+    activity: document.getElementById('activity').value,
+    goal: document.getElementById('goal').value,
+    wake: document.getElementById('wake').value,
+    sleep: document.getElementById('sleep').value,
+    schoolStart: document.getElementById('schoolStart').value,
+    schoolEnd: document.getElementById('schoolEnd').value,
+    meals: document.getElementById('meals').value,
+    trainingTime: hasTraining.checked ? document.getElementById('trainingTime').value : '',
+    trainingDuration: document.getElementById('trainingDuration').value,
+  };
+
+  const data = buildPlan(payload);
+  if (data.errors) {
+    errorBox.textContent = '⚠️ ' + data.errors.join('. ');
+    errorBox.style.display = 'block';
+    return;
+  }
+  render(data);
+});
+
+function render(data) {
+  const s = data.summary;
+  document.getElementById('s-cal').textContent = s.calories;
+  document.getElementById('s-protein').textContent = s.protein;
+  document.getElementById('s-fat').textContent = s.fat;
+  document.getElementById('s-carbs').textContent = s.carbs;
+  document.getElementById('s-water').textContent = s.water;
+  document.getElementById('s-sleep').textContent = s.sleepHours;
+
+  const notesBox = document.getElementById('notes');
+  notesBox.innerHTML = '';
+  (data.notes || []).forEach(n => {
+    const d = document.createElement('div');
+    d.className = 'note';
+    d.textContent = '💡 ' + n;
+    notesBox.appendChild(d);
+  });
+
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  data.schedule.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'item' + (item.type === 'meal' ? ' meal' : '');
+    row.innerHTML = `
+      <div class="time">${item.time}</div>
+      <div class="tag">${TAGS[item.type] || ''}</div>
+      <div class="body"><h4>${item.title}</h4><p>${item.text}</p></div>
+    `;
+    tl.appendChild(row);
+  });
+
+  results.style.display = 'block';
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
